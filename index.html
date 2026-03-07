@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wuthering Heights - 비행술 수업</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg: #fdfdfd;
+            --sky: #ebf5fb;
+            --primary: #6c5ce7;
+            --danger: #ff7675;
+            --text: #333333;
+            --border: #dfe6e9;
+        }
+        * { user-select: none; -webkit-user-drag: none; outline: none; box-sizing: border-box; }
+        body { 
+            background: var(--bg); color: var(--text); 
+            font-family: 'Pretendard', sans-serif;
+            margin: 0; display: flex; justify-content: center; align-items: center; 
+            height: 100vh; overflow: hidden; touch-action: none;
+        }
+        .screen { 
+            display: none; width: 100%; max-width: 450px; height: 100%; 
+            background: linear-gradient(to top, #ebf5fb, #ffffff); 
+            padding: 20px; flex-direction: column; align-items: center; position: relative;
+            overflow: hidden;
+        }
+        .active { display: flex; }
+        
+        /* 고도(점수) 표시 */
+        .dist-container {
+            position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+            text-align: center; z-index: 100; background: rgba(255,255,255,0.8);
+            padding: 5px 25px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        #distance { font-size: 2.5rem; font-weight: 900; color: var(--primary); margin: 0; }
+        .unit { font-size: 0.8rem; font-weight: bold; color: #7f8c8d; }
+
+        /* 플레이어 (빗자루) */
+        #player {
+            position: absolute; bottom: 100px; left: 50%;
+            width: 60px; height: 60px; font-size: 50px;
+            display: flex; align-items: center; justify-content: center;
+            transform: translateX(-50%); z-index: 50;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* 장애물 스타일 */
+        .obstacle {
+            position: absolute; font-size: 40px; z-index: 40;
+            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.1));
+        }
+
+        /* 컨트롤 버튼 */
+        .mobile-controls {
+            position: absolute; bottom: 30px; width: 100%;
+            display: flex; justify-content: center; gap: 40px; z-index: 100;
+        }
+        .key-btn {
+            width: 70px; height: 70px; background: rgba(255,255,255,0.9);
+            border: 2px solid var(--border); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 30px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .key-btn:active { transform: scale(0.9); background: #eee; }
+
+        /* 결과 창 */
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        .content-box { background: white; padding: 30px; border-radius: 25px; width: 85%; max-width: 350px; text-align: center; }
+        #result-card { border: 3px solid var(--primary); border-radius: 20px; padding: 20px; margin-bottom: 20px; }
+        #final-dist { font-size: 3rem; font-weight: 900; color: var(--primary); }
+        .btn-main { background: var(--primary); color: white; width: 100%; padding: 15px; border-radius: 50px; border: none; font-size: 1.1rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="screen active">
+        <div style="font-size: 6rem; margin-top: 150px; animation: float 2s infinite ease-in-out;">🧹</div>
+        <h1 style="color: var(--primary); font-size: 2.2rem;">비행술 수업</h1>
+        <p style="color: #636e72;">장애물을 피해서 최대한 높이 올라가세요!</p>
+        <button class="btn-main" onclick="startGame()" style="margin-top: 50px; width: 80%;">비행 시작</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="dist-container">
+            <p id="distance">0</p>
+            <span class="unit">높이 (m)</span>
+        </div>
+        
+        <div id="player">🧹</div>
+
+        <div class="mobile-controls">
+            <div class="key-btn" onmousedown="moveStart('left')" onmouseup="moveEnd()" ontouchstart="moveStart('left')" ontouchend="moveEnd()">←</div>
+            <div class="key-btn" onmousedown="moveStart('right')" onmouseup="moveEnd()" ontouchstart="moveStart('right')" ontouchend="moveEnd()">→</div>
+        </div>
+    </div>
+
+    <div id="gameover-screen" class="overlay">
+        <div class="content-box">
+            <div id="capture-area">
+                <div id="result-card">
+                    <h2 style="color: var(--danger); margin: 0;">충돌 발생!</h2>
+                    <div id="final-dist">0m</div>
+                    <div id="rank-text" style="font-weight: bold; color: #636e72;">낙제</div>
+                </div>
+                <div class="result-controls" style="width: 100%; margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="saveImage()" style="background: #00b894; color: white; width: 100%; padding: 14px; border-radius: 50px; border: none; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s;">
+                📷 이미지로 저장하기
+            </button>
+            
+            <button onclick="location.reload()" style="background: var(--primary); color: white; width: 100%; padding: 14px; border-radius: 50px; border: none; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s;">
+                다시 도전
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let gameActive = false;
+        let altitude = 0;
+        let playerX = 50;
+        let moveDir = 0;
+        let obstacles = [];
+        let gameSpeed = 5;
+        let spawnRate = 0.02;
+
+        const screen = document.getElementById('game-screen');
+        const player = document.getElementById('player');
+
+        window.addEventListener('keydown', (e) => {
+            if(e.key === 'ArrowLeft') moveDir = -1.5;
+            if(e.key === 'ArrowRight') moveDir = 1.5;
+        });
+        window.addEventListener('keyup', () => moveDir = 0);
+
+        function moveStart(dir) { moveDir = dir === 'left' ? -1.5 : 1.5; }
+        function moveEnd() { moveDir = 0; }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            gameActive = true;
+            requestAnimationFrame(update);
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            // 1. 플레이어 이동
+            playerX += moveDir;
+            if (playerX < 5) playerX = 5;
+            if (playerX > 95) playerX = 95;
+            player.style.left = playerX + "%";
+
+            // 2. 장애물 생성 및 이동
+            if (Math.random() < spawnRate) {
+                createObstacle();
+            }
+
+            // 고도 상승 및 난이도 증가
+            altitude += 0.2;
+            document.getElementById('distance').innerText = Math.floor(altitude);
+            gameSpeed = 5 + (altitude / 100); 
+            spawnRate = 0.02 + (altitude / 5000);
+
+            moveObstacles();
+
+            requestAnimationFrame(update);
+        }
+
+        function createObstacle() {
+            const obs = document.createElement('div');
+            obs.className = 'obstacle';
+            const type = ['☁️', '🦅', '⛈️', '🎈'][Math.floor(Math.random() * 4)];
+            obs.innerText = type;
+            obs.style.left = (Math.random() * 90 + 5) + "%";
+            obs.style.top = "-50px";
+            screen.appendChild(obs);
+            obstacles.push({ el: obs, top: -50 });
+        }
+
+        function moveObstacles() {
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let o = obstacles[i];
+                o.top += gameSpeed;
+                o.el.style.top = o.top + "px";
+
+                // 충돌 감지
+                const pRect = player.getBoundingClientRect();
+                const oRect = o.el.getBoundingClientRect();
+
+                if (
+                    pRect.left < oRect.right - 10 &&
+                    pRect.right > oRect.left + 10 &&
+                    pRect.top < oRect.bottom - 10 &&
+                    pRect.bottom > oRect.top + 10
+                ) {
+                    gameOver();
+                }
+
+                // 화면 밖으로 나간 장애물 제거
+                if (o.top > window.innerHeight) {
+                    o.el.remove();
+                    obstacles.splice(i, 1);
+                }
+            }
+        }
+
+        function gameOver() {
+            gameActive = false;
+            document.getElementById('final-dist').innerText = Math.floor(altitude) + "m";
+            
+            let rank = "낙제";
+            if(altitude > 1000) rank = "O(출중함)";
+            else if(altitude > 600) rank = "E(기대 이상)";
+            else if(altitude > 300) rank = "A(합격)";
+            document.getElementById('rank-text').innerText = rank;
+
+            document.getElementById('gameover-screen').style.display = 'flex';
+        }
+
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }`;
+        document.head.appendChild(style);
+        function saveImage() {
+            const area = document.getElementById('capture-area');
+            
+            html2canvas(area, {
+                backgroundColor: "#ffffff",
+                scale: 2
+            }).then(canvas => {
+                const link = document.createElement('a');
+                const score = document.getElementById('final-dist').innerText;
+                
+                link.download = `비행기록_${score}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>
