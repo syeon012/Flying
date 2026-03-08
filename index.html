@@ -249,7 +249,7 @@
             gameActive = false;
             const score = Math.floor(altitude);
             document.getElementById('final-dist').innerText = score + "m";
-            let rank = score >= 1200 ? "O(출중함)" : (score >= 800 ? "E(기대 이상)" : (score >= 600 ? "A(합격)" : "낙제"));
+            let rank = score >= 1000 ? "O(출중함)" : (score >= 700 ? "E(기대 이상)" : (score >= 500 ? "A(합격)" : "낙제"));
             document.getElementById('rank-text').innerText = rank;
             document.getElementById('gameover-screen').style.display = 'flex';
         }
